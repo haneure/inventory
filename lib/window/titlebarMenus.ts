@@ -136,10 +136,10 @@ export const menuItems: TitlebarMenu[] = [
     name: 'Credits',
     items: [
       {
-        name: 'Guasam',
+        name: 'Haneure',
         action: 'web-open-url',
-        actionParams: ['https://github.com/guasam'],
-        shortcut: '@guasam',
+        actionParams: ['https://github.com/haneure'],
+        shortcut: '@haneure',
       },
     ],
   },

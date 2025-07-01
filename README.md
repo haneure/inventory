@@ -1,4 +1,4 @@
-# 🧾 Inventory App (Electron + React + Excel + QR Code)
+# 🧾 Inventoria (Electron + React + Excel + QR Code)
 
 This is a cross-platform **inventory management application** designed for **offline, LAN-based usage**. It consists of a **Windows desktop app** built with Electron + React + Express, and a **mobile client** (Android) that connects over the local network.
 

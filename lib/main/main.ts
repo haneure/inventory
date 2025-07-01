@@ -1,7 +1,123 @@
-import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import * as path from 'path'
 import { createAppWindow } from './app'
-import '../../app/server/server';
+import { getAppSettings, getCurrentDatabasePath, loadConfig, saveAppSettings, setCurrentDatabasePath } from './utils/config'
+import { initializeExcelFile } from './utils/excel'
+
+// Load config early to ensure it's available when other modules import it
+loadConfig();
+
+// Import server after config is loaded
+import '../../app/server/server'
+
+// Store reference to main window
+let mainWindow: BrowserWindow | null = null;
+
+// IPC handlers for database path management
+ipcMain.handle('get-database-path', () => {
+  return getCurrentDatabasePath();
+});
+
+ipcMain.handle('select-database-folder', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+    title: 'Select Database Folder'
+  });
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    const selectedPath = path.join(result.filePaths[0], 'data.xlsx');
+    setCurrentDatabasePath(selectedPath);
+    return selectedPath;
+  }
+  return null;
+});
+
+ipcMain.handle('select-database-file', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    title: 'Select Database File',
+    filters: [
+      { name: 'Excel Files', extensions: ['xlsx', 'xls'] }
+    ]
+  });
+  
+  if (!result.canceled && result.filePaths.length > 0) {
+    setCurrentDatabasePath(result.filePaths[0]);
+    return result.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.handle('reset-database-path', () => {
+  setCurrentDatabasePath(null);
+  return true;
+});
+
+ipcMain.handle('refresh-database', () => {
+  // Force re-initialization of the Excel file with new path
+  try {
+    initializeExcelFile();
+    return true;
+  } catch (error) {
+    console.error('Error refreshing database:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('open-database-location', () => {
+  const customPath = getCurrentDatabasePath();
+  
+  if (customPath) {
+    // Show file in folder
+    shell.showItemInFolder(customPath);
+  } else {
+    // Open default location
+    const defaultPath = path.join(app.getPath('userData'), 'database');
+    shell.openPath(defaultPath);
+  }
+  return true;
+});
+
+ipcMain.handle('save-app-settings', (_, settings) => {
+  try {
+    saveAppSettings(settings);
+    
+    // Update window title if main window exists
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const appSettings = getAppSettings();
+      mainWindow.setTitle(appSettings.appName || 'Inventoria');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error saving app settings:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('get-app-settings', () => {
+  try {
+    return getAppSettings();
+  } catch (error) {
+    console.error('Error getting app settings:', error);
+    return { appName: 'Inventoria' };
+  }
+});
+
+// IPC handler to update window title
+ipcMain.handle('update-window-title', (_, title) => {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setTitle(title || 'Inventoria');
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error updating window title:', error);
+    return false;
+  }
+});
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -9,8 +125,8 @@ import '../../app/server/server';
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
-  // Create app window
-  createAppWindow()
+  // Create app window and store reference
+  mainWindow = createAppWindow()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -23,7 +139,7 @@ app.whenReady().then(() => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
-      createAppWindow()
+      mainWindow = createAppWindow()
     }
   })
 })

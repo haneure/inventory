@@ -25,6 +25,6 @@ export const qrCodeService = {
 
   // Get QR code image URL
   getQRCodeUrl: (productId: string): string => {
-    return `http://localhost:3000/qr/${productId}`;
+    return `http://localhost:3000/api/qr/${productId}`;
   }
 };

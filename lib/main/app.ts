@@ -1,12 +1,16 @@
-import { BrowserWindow, shell, app, protocol, net } from 'electron'
-import { join } from 'path'
 import { registerWindowIPC } from '@/lib/window/ipcEvents'
 import appIcon from '@/resources/build/icon.png?asset'
+import { app, BrowserWindow, net, protocol, shell } from 'electron'
+import { join } from 'path'
 import { pathToFileURL } from 'url'
+import { getAppSettings } from './utils/config'
 
-export function createAppWindow(): void {
+export function createAppWindow(): BrowserWindow {
   // Register custom protocol for resources
   registerResourcesProtocol()
+
+  // Get app settings for window title
+  const settings = getAppSettings()
 
   // Create the main window.
   const mainWindow = new BrowserWindow({
@@ -17,7 +21,7 @@ export function createAppWindow(): void {
     icon: appIcon,
     frame: false,
     titleBarStyle: 'hiddenInset',
-    title: 'Electron React App',
+    title: settings.appName || 'Inventoria',
     maximizable: true,
     resizable: true,
     webPreferences: {
@@ -48,6 +52,8 @@ export function createAppWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  return mainWindow
 }
 
 // Register custom protocol for assets

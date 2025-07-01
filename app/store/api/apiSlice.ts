@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { Product, ProductResponse } from '../../services/productService';
 import { Category, CategoryResponse } from '../../services/categoryService';
+import { Product, ProductResponse } from '../../services/productService';
 import { Storage, StorageResponse } from '../../services/storageService';
 
 // Base API configuration
@@ -54,6 +54,19 @@ export const apiSlice = createApi({
       }),
       transformResponse: (response: { success: boolean; data: { qrCodePath: string } }) => response.data.qrCodePath,
       invalidatesTags: (result, error, id) => [{ type: 'Product', id }],
+    }),
+    generateBarcode: builder.mutation<string, { productId: string; barcodeType?: string }>({
+      query: ({ productId, barcodeType = 'code128' }) => ({
+        url: '/generate-barcode',
+        method: 'POST',
+        body: { productId, barcodeType },
+      }),
+      transformResponse: (response: { success: boolean; data: { barcodePath: string } }) => response.data.barcodePath,
+      invalidatesTags: (result, error, args) => [{ type: 'Product', id: args.productId }],
+    }),
+    getBarcodeTypes: builder.query<{ value: string; label: string; description: string }[], void>({
+      query: () => '/barcode-types',
+      transformResponse: (response: { success: boolean; data: any[] }) => response.data,
     }),
 
     // Category endpoints
@@ -142,6 +155,8 @@ export const {
   useUpdateProductMutation,
   useDeleteProductMutation,
   useGenerateQRCodeMutation,
+  useGenerateBarcodeMutation,
+  useGetBarcodeTypesQuery,
   useGetCategoriesQuery,
   useGetCategoryQuery,
   useAddCategoryMutation,

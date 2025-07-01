@@ -1,7 +1,8 @@
-import * as XLSX from 'xlsx';
-import * as path from 'path';
-import * as fs from 'fs-extra';
 import { app } from 'electron';
+import * as fs from 'fs-extra';
+import * as path from 'path';
+import * as XLSX from 'xlsx';
+import { getCurrentDatabasePath } from './config';
 
 // Define the path to the Excel file
 const getExcelFilePath = (): string => {
@@ -16,8 +17,15 @@ const getDevExcelFilePath = (): string => {
   return path.join(process.cwd(), 'database', 'data.xlsx');
 };
 
-// Get the appropriate file path based on environment
+// Get the appropriate file path based on environment and user preference
 const getDbFilePath = (): string => {
+  // First check if user has set a custom path
+  const customPath = getCurrentDatabasePath();
+  if (customPath) {
+    return customPath;
+  }
+  
+  // Fallback to default behavior
   if (process.env.NODE_ENV === 'development') {
     const devPath = getDevExcelFilePath();
     if (fs.existsSync(devPath)) {
@@ -37,7 +45,7 @@ export function initializeExcelFile(): void {
     const workbook = XLSX.utils.book_new();
     
     // Initialize sheets with headers
-    const productSheet = XLSX.utils.aoa_to_sheet([['id', 'name', 'category', 'price', 'stock', 'qrCodePath', 'createdAt', 'updatedAt']]);
+    const productSheet = XLSX.utils.aoa_to_sheet([['id', 'name', 'category', 'price', 'stock', 'sku', 'qrCodePath', 'createdAt', 'updatedAt']]);
     const categorySheet = XLSX.utils.aoa_to_sheet([['id', 'name', 'createdAt', 'updatedAt']]);
     const storageSheet = XLSX.utils.aoa_to_sheet([['id', 'name', 'location', 'createdAt', 'updatedAt']]);
     

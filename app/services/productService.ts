@@ -8,6 +8,8 @@ export interface Product {
   price: number;
   stock: number;
   qrCodePath?: string;
+  barcodePath?: string;
+  barcodeType?: string;
   description?: string;
   sku?: string;
   location?: string;
@@ -85,6 +87,17 @@ export const productService = {
       return response.data.qrCodePath;
     } catch (error) {
       console.error(`Error generating QR code for product ${productId}:`, error);
+      return null;
+    }
+  },
+
+  // Generate barcode for a product
+  generateBarcode: async (productId: string, barcodeType: string = 'code128'): Promise<string | null> => {
+    try {
+      const response = await apiService.post<{ success: boolean; data: { barcodePath: string } }>('/generate-barcode', { productId, barcodeType });
+      return response.data.barcodePath;
+    } catch (error) {
+      console.error(`Error generating barcode for product ${productId}:`, error);
       return null;
     }
   }

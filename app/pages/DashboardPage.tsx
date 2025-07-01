@@ -1,50 +1,62 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Package, 
-  Tag, 
-  Archive, 
-  LinkIcon, 
-  TrendingUp, 
-  AlertCircle,
-  ShoppingCart,
-  ArrowRight
-} from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { 
-  useGetProductsQuery,
-  useGetCategoriesQuery,
-  useGetStorageLocationsQuery
-} from '../store/api/apiSlice';
+import { AlertCircle, Archive, ArrowRight, LinkIcon, Package, ShoppingCart, Tag, TrendingUp } from 'lucide-react'
+import React from 'react'
+import { Link } from 'react-router-dom'
+import { Badge } from '../components/ui/badge'
+import { Button } from '../components/ui/button'
+import { useGetCategoriesQuery, useGetProductsQuery, useGetStorageLocationsQuery } from '../store/api/apiSlice'
 
 export default function DashboardPage() {
   // Use RTK Query hooks for data fetching
-  const { data: products = [], isLoading: productsLoading, error: productsError } = useGetProductsQuery();
-  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useGetCategoriesQuery();
-  const { data: storageLocations = [], isLoading: storageLoading, error: storageError } = useGetStorageLocationsQuery();
-  
-  const isLoading = productsLoading || categoriesLoading || storageLoading;
-  const error = productsError || categoriesError || storageError;
+  const { data: products = [], isLoading: productsLoading, error: productsError } = useGetProductsQuery()
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useGetCategoriesQuery()
+  const { data: storageLocations = [], isLoading: storageLoading, error: storageError } = useGetStorageLocationsQuery()
+
+  const isLoading = productsLoading || categoriesLoading || storageLoading
+  const error = productsError || categoriesError || storageError
 
   // Calculate low stock items (less than 10 in stock)
-  const lowStockItems = products.filter(product => product.stock < 10);
+  const lowStockItems = products.filter((product) => product.stock < 10)
 
-  // Generate recent activity (this would normally come from a dedicated activity log)
-  const recentActivity = products.slice(0, 5).map((product, index) => ({
-    id: index,
-    type: index % 3 === 0 ? 'update' : index % 2 === 0 ? 'add' : 'edit',
-    productName: product.name,
-    details: index % 3 === 0 
-      ? `stock updated to ${product.stock} units` 
-      : index % 2 === 0 
-      ? 'added to inventory' 
-      : 'information updated',
-    time: `${index + 1}h ago`
-  }));
+  // Generate recent activity (demo: show last 5 products, most recent first, with real timestamps)
+  const recentActivity = [...products]
+    .sort((a, b) => {
+      // Prefer updatedAt, fallback to createdAt, fallback to id
+      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime()
+      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime()
+      return bTime - aTime
+    })
+    .slice(0, 5)
+    .map((product, index) => {
+      // Calculate time ago
+      let timeAgo = ''
+      const now = Date.now()
+      const productTime = new Date(product.updatedAt || product.createdAt || 0).getTime()
+      const diffMs = now - productTime
+      if (diffMs < 60 * 1000) {
+        timeAgo = 'just now'
+      } else if (diffMs < 60 * 60 * 1000) {
+        timeAgo = `${Math.floor(diffMs / (60 * 1000))}m ago`
+      } else if (diffMs < 24 * 60 * 60 * 1000) {
+        timeAgo = `${Math.floor(diffMs / (60 * 60 * 1000))}h ago`
+      } else {
+        timeAgo = `${Math.floor(diffMs / (24 * 60 * 60 * 1000))}d ago`
+      }
+      return {
+        id: product.id || index,
+        type: index % 3 === 0 ? 'update' : index % 2 === 0 ? 'add' : 'edit',
+        productName: product.name,
+        details:
+          index % 3 === 0
+            ? `stock updated to ${product.stock} units`
+            : index % 2 === 0
+              ? 'added to inventory'
+              : 'information updated',
+        time: timeAgo,
+      }
+    })
 
   if (isLoading) {
-    return <div className="flex justify-center p-8">Loading dashboard data...</div>;
+    return <div className="flex justify-center p-8">Loading dashboard data...</div>
   }
 
   if (error) {
@@ -52,7 +64,7 @@ export default function DashboardPage() {
       <div className="bg-destructive/10 text-destructive p-4 rounded-md">
         Failed to load dashboard data. Please try again.
       </div>
-    );
+    )
   }
 
   return (
@@ -157,13 +169,16 @@ export default function DashboardPage() {
             <ShoppingCart className="mr-2 h-5 w-5" />
             Recent Products
           </h2>
-          
+
           {products.length === 0 ? (
             <p className="text-muted-foreground text-center p-4">No products added yet</p>
           ) : (
             <div className="space-y-3">
               {products.slice(0, 5).map((product) => (
-                <div key={product.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
+                >
                   <div className="flex items-center">
                     <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center mr-3">
                       <Package className="h-5 w-5 text-primary" />
@@ -174,15 +189,13 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div>
-                    <Badge variant={product.stock < 10 ? "destructive" : "secondary"}>
-                      {product.stock} in stock
-                    </Badge>
+                    <Badge variant={product.stock < 10 ? 'destructive' : 'secondary'}>{product.stock} in stock</Badge>
                   </div>
                 </div>
               ))}
             </div>
           )}
-          
+
           <div className="mt-4">
             <Button variant="ghost" className="w-full" asChild>
               <Link to="/products">View All Products</Link>
@@ -201,7 +214,10 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3">
               {lowStockItems.slice(0, 5).map((product) => (
-                <div key={product.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
+                >
                   <div className="flex items-center">
                     <div className="w-10 h-10 bg-secondary/10 rounded-md flex items-center justify-center mr-3">
                       <Package className="h-5 w-5 text-secondary" />
@@ -212,7 +228,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <Badge variant={product.stock < 5 ? "destructive" : "secondary"} className="mr-2">
+                    <Badge variant={product.stock < 5 ? 'destructive' : 'secondary'} className="mr-2">
                       {product.stock} left
                     </Badge>
                     <Link to={`/products/edit/${product.id}`}>
@@ -237,33 +253,37 @@ export default function DashboardPage() {
         {/* Recent Activity */}
         <div className="bg-card rounded-lg border border-border p-6 shadow-sm md:col-span-2">
           <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-          
+
           {recentActivity.length === 0 ? (
             <p className="text-muted-foreground text-center p-4">No recent activity</p>
           ) : (
             <div className="space-y-3">
               {recentActivity.map((item) => (
                 <div key={item.id} className="flex items-center border-b border-border pb-3 last:border-0 last:pb-0">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    item.type === 'update' ? 'bg-yellow-100 text-yellow-700' : 
-                    item.type === 'add' ? 'bg-green-100 text-green-700' : 
-                    'bg-blue-100 text-blue-700'
-                  } mr-3`}>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      item.type === 'update'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : item.type === 'add'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-blue-100 text-blue-700'
+                    } mr-3`}
+                  >
                     {item.type === 'update' ? '🔄' : item.type === 'add' ? '➕' : '✏️'}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">
-                      {item.type === 'update' ? 'Stock Updated' : 
-                      item.type === 'add' ? 'New Product Added' : 
-                      'Product Edited'}
+                      {item.type === 'update'
+                        ? 'Stock Updated'
+                        : item.type === 'add'
+                          ? 'New Product Added'
+                          : 'Product Edited'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       {item.productName} {item.details}
                     </p>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {item.time}
-                  </div>
+                  <div className="text-xs text-muted-foreground">{item.time}</div>
                 </div>
               ))}
             </div>
@@ -271,5 +291,5 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

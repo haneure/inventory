@@ -1,15 +1,13 @@
-import React from 'react';
-import { createHashRouter, RouterProvider, Outlet } from 'react-router-dom';
-import DashboardPage from './pages/DashboardPage';
-import ProductListPage from './pages/ProductListPage';
-import ProductFormPage from './pages/ProductFormPage';
-import ProductDetailPage from './pages/ProductDetailPage';
-import CategoryPage from './pages/CategoryPage';
-import StorageListPage from './pages/StorageListPage';
-import SettingsPage from './pages/SettingsPage';
-import { Layout } from './components/ui/Layout';
-import { Provider } from 'react-redux';
-import { store } from './store/store';
+import React from 'react'
+import { Provider } from 'react-redux'
+import { createHashRouter, Outlet, RouterProvider } from 'react-router-dom'
+import { Layout } from './components/ui/Layout'
+import CategoryPage from './pages/CategoryPage'
+import DashboardPage from './pages/DashboardPage'
+import { ProductDetailPage, ProductFormPage, ProductListPage } from './pages/product'
+import SettingsPage from './pages/SettingsPage'
+import StorageListPage from './pages/StorageListPage'
+import { store } from './store/store'
 
 // Wrap the children in the Layout component
 const AppLayout = () => {
@@ -17,8 +15,8 @@ const AppLayout = () => {
     <Layout>
       <Outlet />
     </Layout>
-  );
-};
+  )
+}
 
 const router = createHashRouter([
   {
@@ -36,13 +34,13 @@ const router = createHashRouter([
       { path: 'storage', element: <StorageListPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
-  }
-]);
+  },
+])
 
 export default function App() {
   return (
     <Provider store={store}>
       <RouterProvider router={router} />
     </Provider>
-  );
+  )
 }
