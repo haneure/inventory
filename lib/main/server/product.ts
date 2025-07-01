@@ -3,20 +3,20 @@ import fs from 'fs-extra';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { generateBarcode } from '../utils/barcode';
-import { appendToSheet, deleteRow, getRowById, readSheet, updateRow } from '../utils/excel';
+import { appendToSheet, deleteRow, getImagesDir, getRowById, readSheet, updateRow } from '../utils/excel';
 import { generateQRCode } from '../utils/qr';
-import { getQrCodeDir } from './qr';
 
 const router = express.Router();
 
 // Helper function to auto-generate QR code and barcode for a product
 const generateCodesForProduct = async (product: any): Promise<{ qrCodePath: string; barcodePath: string }> => {
   const qrData = product.sku || product.id;
+  const skuForFilename = (product.sku || product.id).replace(/[^a-zA-Z0-9-_]/g, '_'); // Sanitize for filename
   
   // Create filenames and paths
-  const qrFileName = `product_${product.id}.png`;
-  const barcodeFileName = `barcode_${product.id}.png`;
-  const codesDir = getQrCodeDir();
+  const qrFileName = `qr_${skuForFilename}.png`;
+  const barcodeFileName = `barcode_${skuForFilename}.png`;
+  const codesDir = getImagesDir();
   const qrFilePath = path.join(codesDir, qrFileName);
   const barcodePath = path.join(codesDir, barcodeFileName);
   
@@ -28,10 +28,9 @@ const generateCodesForProduct = async (product: any): Promise<{ qrCodePath: stri
 };
 
 // Get all products
-router.get('/products', (req, res) => {
+router.get('/products', (_req, res) => {
   try {
     const products = readSheet('Products');
-    console.log('Fetched products:', products); // Debug log
     res.json({ success: true, data: products });
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -168,6 +167,14 @@ router.put('/products/:id', async (req, res) => {
     // If SKU changed, regenerate QR code and barcode
     if (skuChanged) {
       try {
+        // Clean up old files first
+        if (existingProduct.qrCodePath && fs.existsSync(existingProduct.qrCodePath)) {
+          fs.unlinkSync(existingProduct.qrCodePath);
+        }
+        if (existingProduct.barcodePath && fs.existsSync(existingProduct.barcodePath)) {
+          fs.unlinkSync(existingProduct.barcodePath);
+        }
+        
         const productToUpdate = getRowById('Products', id);
         const { qrCodePath: newQrPath, barcodePath: newBarcodePath } = await generateCodesForProduct(productToUpdate);
         
@@ -204,7 +211,7 @@ router.delete('/products/:id', (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    // Delete QR code file if exists
+    // Delete QR code and barcode files if they exist
     if (existingProduct.qrCodePath) {
       try {
         if (fs.existsSync(existingProduct.qrCodePath)) {
@@ -215,10 +222,20 @@ router.delete('/products/:id', (req, res) => {
       }
     }
 
+    if (existingProduct.barcodePath) {
+      try {
+        if (fs.existsSync(existingProduct.barcodePath)) {
+          fs.unlinkSync(existingProduct.barcodePath);
+        }
+      } catch (err) {
+        console.warn('Failed to delete barcode file:', err);
+      }
+    }
+
     // Delete from Excel
     deleteRow('Products', id);
 
-    res.json({ success: true, message: 'Product and QR code deleted successfully' });
+    res.json({ success: true, message: 'Product, QR code, and barcode deleted successfully' });
   } catch (error) {
     console.error('Error deleting product:', error);
     res.status(500).json({ success: false, message: 'Failed to delete product' });

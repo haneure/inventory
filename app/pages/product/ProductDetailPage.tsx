@@ -75,6 +75,164 @@ export default function ProductDetailPage() {
     }
   }
 
+  const printQRCode = () => {
+    if (!product?.id) return
+
+    const qrCodeUrl = qrCodeService.getQRCodeUrl(product.id)
+
+    // Create a hidden iframe for printing
+    const printFrame = document.createElement('iframe')
+    printFrame.style.display = 'none'
+    document.body.appendChild(printFrame)
+
+    const printDocument = printFrame.contentDocument || printFrame.contentWindow?.document
+    if (printDocument) {
+      printDocument.open()
+      printDocument.write(`
+        <html>
+          <head>
+            <title>QR Code - ${product.name} (${product.sku})</title>
+            <style>
+              body {
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                font-family: Arial, sans-serif;
+                background: white;
+              }
+              .product-info {
+                text-align: center;
+                margin-bottom: 20px;
+              }
+              .product-name {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 5px;
+                color: black;
+              }
+              .product-sku {
+                font-size: 14px;
+                color: #666;
+              }
+              img {
+                max-width: 300px;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+              }
+              @media print {
+                body { margin: 0; padding: 10px; }
+                @page { margin: 0.5in; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="product-info">
+              <div class="product-name">${product.name}</div>
+              <div class="product-sku">SKU: ${product.sku}</div>
+            </div>
+            <img src="${qrCodeUrl}" alt="QR Code for ${product.name}" />
+          </body>
+        </html>
+      `)
+      printDocument.close()
+
+      // Wait for content to load, then print
+      setTimeout(() => {
+        printFrame.contentWindow?.print()
+        // Remove the frame after printing
+        setTimeout(() => {
+          document.body.removeChild(printFrame)
+        }, 1000)
+      }, 500)
+    }
+  }
+
+  const printBarcode = () => {
+    if (!product?.id) return
+
+    const barcodeUrl = barcodeService.getBarcodeUrl(product.id)
+
+    // Create a hidden iframe for printing
+    const printFrame = document.createElement('iframe')
+    printFrame.style.display = 'none'
+    document.body.appendChild(printFrame)
+
+    const printDocument = printFrame.contentDocument || printFrame.contentWindow?.document
+    if (printDocument) {
+      printDocument.open()
+      printDocument.write(`
+        <html>
+          <head>
+            <title>Barcode - ${product.name} (${product.sku})</title>
+            <style>
+              body {
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                font-family: Arial, sans-serif;
+                background: white;
+              }
+              .product-info {
+                text-align: center;
+                margin-bottom: 20px;
+              }
+              .product-name {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 5px;
+                color: black;
+              }
+              .product-sku {
+                font-size: 14px;
+                color: #666;
+              }
+              .barcode-container {
+                background: white;
+                padding: 20px;
+                text-align: center;
+              }
+              img {
+                max-width: 400px;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+              }
+              @media print {
+                body { margin: 0; padding: 10px; }
+                @page { margin: 0.5in; }
+                .barcode-container { padding: 10px; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="product-info">
+              <div class="product-name">${product.name}</div>
+              <div class="product-sku">SKU: ${product.sku}</div>
+            </div>
+            <div class="barcode-container">
+              <img src="${barcodeUrl}" alt="Barcode for ${product.name}" />
+            </div>
+          </body>
+        </html>
+      `)
+      printDocument.close()
+
+      // Wait for content to load, then print
+      setTimeout(() => {
+        printFrame.contentWindow?.print()
+        // Remove the frame after printing
+        setTimeout(() => {
+          document.body.removeChild(printFrame)
+        }, 1000)
+      }, 500)
+    }
+  }
+
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading product details...</div>
   }
@@ -250,7 +408,7 @@ export default function ProductDetailPage() {
                       <QrCode className="mr-2 h-4 w-4" />
                       Download QR Code
                     </Button>
-                    <Button variant="outline" className="w-full" onClick={() => window.print()}>
+                    <Button variant="outline" className="w-full" onClick={() => printQRCode()}>
                       <Printer className="mr-2 h-4 w-4" />
                       Print QR Code
                     </Button>
@@ -288,7 +446,7 @@ export default function ProductDetailPage() {
                       <Barcode className="mr-2 h-4 w-4" />
                       Download Barcode
                     </Button>
-                    <Button variant="outline" className="w-full" onClick={() => window.print()}>
+                    <Button variant="outline" className="w-full" onClick={() => printBarcode()}>
                       <Printer className="mr-2 h-4 w-4" />
                       Print Barcode
                     </Button>

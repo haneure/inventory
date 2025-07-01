@@ -1,19 +1,18 @@
-import { app, BrowserWindow } from 'electron';
-import path from 'path';
-import express from 'express';
 import cors from 'cors';
+import { BrowserWindow } from 'electron';
+import express from 'express';
 import fs from 'fs-extra';
 
 // Import API routes
-import productRouter from '../../lib/main/server/product';
 import categoryRouter from '../../lib/main/server/category';
-import storageRouter from '../../lib/main/server/storage';
+import productRouter from '../../lib/main/server/product';
 import qrRouter from '../../lib/main/server/qr';
+import storageRouter from '../../lib/main/server/storage';
 
 // Import Excel utility to initialize database
-import { initializeExcelFile } from '../../lib/main/utils/excel';
+import { getImagesDir, initializeExcelFile } from '../../lib/main/utils/excel';
 
-let mainWindow: BrowserWindow | null = null;
+const mainWindow: BrowserWindow | null = null;
 
 // Initialize Excel database
 initializeExcelFile();
@@ -23,12 +22,15 @@ const api = express();
 api.use(cors());
 api.use(express.json());
 
-// Ensure QR code directory exists
-const qrFolder = path.join(process.env.NODE_ENV === 'development' ? process.cwd() : app.getPath('userData'), 'qr-codes');
-fs.ensureDirSync(qrFolder);
+// Ensure images directory exists (replaces old qr-codes folder)
+const imagesFolder = getImagesDir();
+fs.ensureDirSync(imagesFolder);
 
-// Serve QR images as static files
-api.use('/qr-codes', express.static(qrFolder));
+// Serve QR and barcode images as static files from the images directory
+api.use('/images', express.static(imagesFolder));
+
+// For backward compatibility, also serve from /qr-codes path
+api.use('/qr-codes', express.static(imagesFolder));
 
 // Register API routes
 api.use('/api', productRouter);

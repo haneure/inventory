@@ -194,3 +194,18 @@ export function getRowById(sheetName: string, id: string): any | null {
     return null;
   }
 }
+
+// Get the images directory based on database location
+export const getImagesDir = (): string => {
+  // Get the current database file path
+  const dbFilePath = getDbFilePath();
+  
+  // Get the directory containing the database file
+  const dbDir = path.dirname(dbFilePath);
+  
+  // Create images directory next to the database
+  const imagesDir = path.join(dbDir, 'images');
+  fs.ensureDirSync(imagesDir);
+  
+  return imagesDir;
+};

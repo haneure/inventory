@@ -1,26 +1,11 @@
-import { app } from 'electron';
 import express from 'express';
 import fs from 'fs-extra';
 import path from 'path';
 import { generateBarcode, getBarcodeTypes } from '../utils/barcode';
-import { getRowById, updateRow } from '../utils/excel';
+import { getImagesDir, getRowById, updateRow } from '../utils/excel';
 import { generateQRCode } from '../utils/qr';
 
 const router = express.Router();
-
-// Ensure QR code directory exists
-export const getQrCodeDir = (): string => {
-  if (process.env.NODE_ENV === 'development') {
-    const devPath = path.join(process.cwd(), 'qr-codes');
-    fs.ensureDirSync(devPath);
-    return devPath;
-  } else {
-    const userDataPath = app.getPath('userData');
-    const qrCodeDir = path.join(userDataPath, 'qr-codes');
-    fs.ensureDirSync(qrCodeDir);
-    return qrCodeDir;
-  }
-};
 
 // Generate QR code for a product
 router.post('/generate-qr', async (req, res) => {
@@ -40,10 +25,11 @@ router.post('/generate-qr', async (req, res) => {
     
     // Use SKU as QR code data
     const qrData = product.sku || product.id;
+    const skuForFilename = (product.sku || product.id).replace(/[^a-zA-Z0-9-_]/g, '_'); // Sanitize for filename
     
     // Create filename and path for QR code
-    const qrFileName = `product_${product.id}.png`;
-    const qrCodeDir = getQrCodeDir();
+    const qrFileName = `qr_${skuForFilename}.png`;
+    const qrCodeDir = getImagesDir();
     const qrFilePath = path.join(qrCodeDir, qrFileName);
     
     // Generate QR code
@@ -110,10 +96,11 @@ router.post('/generate-barcode', async (req, res) => {
     
     // Use SKU as barcode data
     const barcodeData = product.sku || product.id;
+    const skuForFilename = (product.sku || product.id).replace(/[^a-zA-Z0-9-_]/g, '_'); // Sanitize for filename
     
     // Create filename and path for barcode
-    const barcodeFileName = `barcode_${product.id}.png`;
-    const qrCodeDir = getQrCodeDir(); // Reuse the same directory
+    const barcodeFileName = `barcode_${skuForFilename}.png`;
+    const qrCodeDir = getImagesDir(); // Reuse the same directory
     const barcodePath = path.join(qrCodeDir, barcodeFileName);
     
     // Generate barcode with specified type
