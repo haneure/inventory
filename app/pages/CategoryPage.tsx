@@ -1,35 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Tag } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { categoryService, Category } from '../services/categoryService';
+import {
+  useGetCategoriesQuery,
+  useAddCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation
+} from '../store/api/apiSlice';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import { Category } from '../services/categoryService';
 
 export default function CategoryPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Fetch categories on mount
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  // Fetch all categories
-  const fetchCategories = async () => {
-    try {
-      setLoading(true);
-      const data = await categoryService.getAllCategories();
-      setCategories(data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      setError('Failed to load categories');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // RTK Query hooks
+  const { data: categories = [], isLoading, error } = useGetCategoriesQuery();
+  const [addCategory] = useAddCategoryMutation();
+  const [updateCategory] = useUpdateCategoryMutation();
+  const [deleteCategory] = useDeleteCategoryMutation();
 
   // Add a new category
   const handleAddCategory = async (e: React.FormEvent) => {
@@ -38,16 +35,10 @@ export default function CategoryPage() {
 
     try {
       setSaving(true);
-      const newCategory = await categoryService.createCategory(newCategoryName.trim());
-      if (newCategory) {
-        setCategories([...categories, newCategory]);
-        setNewCategoryName('');
-      } else {
-        setError('Failed to create category');
-      }
+      await addCategory({ name: newCategoryName.trim() });
+      setNewCategoryName('');
     } catch (err) {
       console.error('Error creating category:', err);
-      setError('An error occurred while creating the category');
     } finally {
       setSaving(false);
     }
@@ -63,28 +54,29 @@ export default function CategoryPage() {
     setEditingCategory(null);
   };
 
+  // Handle input change for editing category
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingCategory) return;
+    
+    setEditingCategory({
+      ...editingCategory,
+      name: e.target.value
+    });
+  };
+
   // Save edited category
   const handleSaveEdit = async () => {
     if (!editingCategory || !editingCategory.name.trim()) return;
 
     try {
       setSaving(true);
-      const updatedCategory = await categoryService.updateCategory(
-        editingCategory.id, 
-        editingCategory.name.trim()
-      );
-      
-      if (updatedCategory) {
-        setCategories(categories.map(cat => 
-          cat.id === updatedCategory.id ? updatedCategory : cat
-        ));
-        setEditingCategory(null);
-      } else {
-        setError('Failed to update category');
-      }
+      await updateCategory({
+        id: editingCategory.id,
+        name: editingCategory.name.trim()
+      });
+      setEditingCategory(null);
     } catch (err) {
       console.error('Error updating category:', err);
-      setError('An error occurred while updating the category');
     } finally {
       setSaving(false);
     }
@@ -94,15 +86,9 @@ export default function CategoryPage() {
   const handleDeleteCategory = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
-        const success = await categoryService.deleteCategory(id);
-        if (success) {
-          setCategories(categories.filter(cat => cat.id !== id));
-        } else {
-          setError('Failed to delete category');
-        }
+        await deleteCategory(id);
       } catch (err) {
         console.error('Error deleting category:', err);
-        setError('An error occurred while deleting the category');
       }
     }
   };
@@ -115,7 +101,7 @@ export default function CategoryPage() {
 
       {error && (
         <div className="bg-destructive/10 text-destructive p-4 rounded-md">
-          {error}
+          {error.toString()}
         </div>
       )}
 
@@ -126,10 +112,10 @@ export default function CategoryPage() {
           Add New Category
         </h2>
         
-        <form onSubmit={handleAddCategory} className="flex space-x-2">
+        <form onSubmit={handleAddCategory} className="flex gap-4">
           <input
             type="text"
-            placeholder="Category name"
+            placeholder="Category name..."
             value={newCategoryName}
             onChange={(e) => setNewCategoryName(e.target.value)}
             className="flex-1 px-3 py-2 border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -142,73 +128,89 @@ export default function CategoryPage() {
         </form>
       </div>
 
-      {/* Categories List */}
+      {/* Categories List using shadcn/ui Table */}
       <div className="bg-card rounded-lg border border-border p-6 shadow-sm">
         <h2 className="text-xl font-semibold mb-4">Categories List</h2>
         
-        {loading ? (
+        {isLoading ? (
           <div className="text-center p-4">Loading categories...</div>
         ) : categories.length === 0 ? (
           <div className="text-center p-4 text-muted-foreground">
             No categories found. Add your first category above.
           </div>
         ) : (
-          <div className="space-y-4">
-            {categories.map(category => (
-              <div 
-                key={category.id} 
-                className="flex items-center justify-between p-3 border border-border rounded-md"
-              >
-                {editingCategory && editingCategory.id === category.id ? (
-                  <div className="flex-1 flex space-x-2">
-                    <input
-                      type="text"
-                      value={editingCategory.name}
-                      onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
-                      className="flex-1 px-3 py-2 border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                      autoFocus
-                    />
-                    <Button 
-                      size="sm" 
-                      onClick={handleSaveEdit}
-                      disabled={saving || !editingCategory.name.trim()}
-                    >
-                      Save
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleCancelEdit}
-                      disabled={saving}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="font-medium">{category.name}</span>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleStartEdit(category)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="text-destructive"
-                        onClick={() => handleDeleteCategory(category.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {categories.map((category) => (
+                <TableRow key={category.id}>
+                  {editingCategory && editingCategory.id === category.id ? (
+                    <TableCell colSpan={2}>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={editingCategory.name}
+                          onChange={handleEditChange}
+                          className="flex-1 px-3 py-2 border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                          autoFocus
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={handleSaveEdit}
+                          disabled={saving || !editingCategory.name.trim()}
+                        >
+                          Save
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleCancelEdit}
+                          disabled={saving}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </TableCell>
+                  ) : (
+                    <>
+                      <TableCell>
+                        <div className="font-medium flex items-center">
+                          <Tag className="mr-2 h-4 w-4" />
+                          {category.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleStartEdit(category)}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-destructive"
+                            onClick={() => handleDeleteCategory(category.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

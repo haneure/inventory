@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -13,46 +13,27 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { productService, Product } from '../services/productService';
 import { qrCodeService } from '../services/qrCodeService';
+import {
+  useGetProductQuery,
+  useDeleteProductMutation,
+  useGenerateQRCodeMutation
+} from '../store/api/apiSlice';
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  useEffect(() => {
-    const fetchProduct = async () => {
-      if (!id) return;
-      
-      try {
-        setLoading(true);
-        const data = await productService.getProductById(id);
-        if (data) {
-          setProduct(data);
-        } else {
-          setError('Product not found');
-        }
-      } catch (err) {
-        setError('Failed to fetch product details');
-        console.error('Error fetching product:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProduct();
-  }, [id]);
+  // Use RTK Query hooks
+  const { data: product, isLoading, isError } = useGetProductQuery(id!);
+  const [deleteProduct] = useDeleteProductMutation();
+  const [generateQRCode] = useGenerateQRCodeMutation();
 
   const handleGenerateQRCode = async () => {
     if (!id) return;
     
     try {
-      const result = await qrCodeService.generateQRCode(id);
-      if (result && product) {
-        setProduct({ ...product, qrCodePath: result.qrCodePath });
-      }
+      await generateQRCode(id);
     } catch (err) {
       setError('Failed to generate QR code');
       console.error('Error generating QR code:', err);
@@ -64,7 +45,7 @@ export default function ProductDetailPage() {
     
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        const success = await productService.deleteProduct(id);
+        const success = await deleteProduct(id).unwrap();
         if (success) {
           // Navigate back to product list
           window.location.href = '/products';
@@ -78,11 +59,11 @@ export default function ProductDetailPage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex justify-center p-8">Loading product details...</div>;
   }
 
-  if (error || !product) {
+  if (isError || !product) {
     return (
       <div className="space-y-6">
         <div className="flex items-center space-x-4">

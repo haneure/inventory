@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, 
   Plus, 
   Filter, 
   ArrowUpDown, 
-  MoreHorizontal,
   Eye,
   Edit,
   Trash2,
@@ -13,34 +12,29 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { productService, Product } from '../services/productService';
 import { qrCodeService } from '../services/qrCodeService';
+import {
+  useGetProductsQuery,
+  useDeleteProductMutation,
+  useGenerateQRCodeMutation
+} from '../store/api/apiSlice';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 
 export default function ProductListPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   
-  // Fetch products from the API
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const data = await productService.getAllProducts();
-        setProducts(data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to fetch products. Please try again later.');
-        console.error('Error fetching products:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
+  // Use RTK Query hooks
+  const { data: products = [], isLoading, error, refetch } = useGetProductsQuery();
+  const [deleteProduct] = useDeleteProductMutation();
+  const [generateQRCode] = useGenerateQRCodeMutation();
 
   // Filter products based on search term
   const filteredProducts = products.filter(product => 
@@ -56,15 +50,9 @@ export default function ProductListPage() {
     
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        const success = await productService.deleteProduct(id);
-        if (success) {
-          // Remove the product from the local state
-          setProducts(products.filter(product => product.id !== id));
-        } else {
-          setError('Failed to delete product. Please try again.');
-        }
+        await deleteProduct(id);
+        // RTK Query will automatically update the cache
       } catch (err) {
-        setError('An error occurred while deleting the product.');
         console.error('Error deleting product:', err);
       }
     }
@@ -76,19 +64,12 @@ export default function ProductListPage() {
     event.stopPropagation();
     
     try {
-      const result = await qrCodeService.generateQRCode(id);
-      if (result) {
-        // Update the product in the local state with the QR code path
-        setProducts(products.map(product => 
-          product.id === id 
-            ? { ...product, qrCodePath: result.qrCodePath } 
-            : product
-        ));
+      const qrCodePath = await generateQRCode(id);
+      if (qrCodePath) {
         // Navigate to product detail page to view the QR code
         navigate(`/products/${id}`);
       }
     } catch (err) {
-      setError('Failed to generate QR code. Please try again.');
       console.error('Error generating QR code:', err);
     }
   };
@@ -108,7 +89,7 @@ export default function ProductListPage() {
       {/* Error message */}
       {error && (
         <div className="bg-destructive/10 text-destructive p-4 rounded-md">
-          {error}
+          {error.toString()}
         </div>
       )}
 
@@ -131,80 +112,80 @@ export default function ProductListPage() {
       </div>
 
       {/* Loading state */}
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center p-8">
           <p>Loading products...</p>
         </div>
       ) : (
-        /* Products Table */
+        /* Products Table using shadcn/ui Table */
         <div className="border border-border rounded-lg overflow-hidden">
           {filteredProducts.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-muted-foreground">No products found. {searchTerm ? 'Try a different search term.' : 'Add your first product!'}</p>
             </div>
           ) : (
-            <table className="w-full bg-card">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
                     <div className="flex items-center">
                       Product
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+                  </TableHead>
+                  <TableHead>
                     <div className="flex items-center">
                       SKU
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+                  </TableHead>
+                  <TableHead>
                     <div className="flex items-center">
                       Category
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+                  </TableHead>
+                  <TableHead>
                     <div className="flex items-center">
                       Quantity
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+                  </TableHead>
+                  <TableHead>
                     <div className="flex items-center">
                       Price
                       <ArrowUpDown className="ml-2 h-4 w-4" />
                     </div>
-                  </th>
-                  <th className="px-4 py-3 text-right text-sm font-medium text-muted-foreground">
+                  </TableHead>
+                  <TableHead className="text-right">
                     Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-4 text-sm">
+                  <TableRow key={product.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell>
                       <div className="font-medium">{product.name}</div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {product.sku || '-'}
-                    </td>
-                    <td className="px-4 py-4 text-sm">
+                    </TableCell>
+                    <TableCell>
                       <Badge variant="secondary">{product.category}</Badge>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center">
                         {product.stock}
                         {product.stock < 10 && (
                           <Badge variant="destructive" className="ml-2">Low</Badge>
                         )}
                       </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm">
+                    </TableCell>
+                    <TableCell>
                       ${product.price.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <Link to={`/products/${product.id}`}>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -233,11 +214,11 @@ export default function ProductListPage() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
           
           {/* Pagination */}

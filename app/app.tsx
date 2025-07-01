@@ -8,6 +8,8 @@ import CategoryPage from './pages/CategoryPage';
 import StorageListPage from './pages/StorageListPage';
 import SettingsPage from './pages/SettingsPage';
 import { Layout } from './components/ui/Layout';
+import { Provider } from 'react-redux';
+import { store } from './store/store';
 
 // Wrap the children in the Layout component
 const AppLayout = () => {
@@ -28,6 +30,7 @@ const router = createHashRouter([
       { index: true, element: <DashboardPage /> },
       { path: 'products', element: <ProductListPage /> },
       { path: 'products/new', element: <ProductFormPage /> },
+      { path: 'products/edit/:id', element: <ProductFormPage /> },
       { path: 'products/:id', element: <ProductDetailPage /> },
       { path: 'categories', element: <CategoryPage /> },
       { path: 'storage', element: <StorageListPage /> },
@@ -37,5 +40,9 @@ const router = createHashRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <Provider store={store}>
+      <RouterProvider router={router} />
+    </Provider>
+  );
 }

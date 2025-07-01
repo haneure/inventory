@@ -10,9 +10,14 @@ import {
   CircleDollarSign
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { productService, Product } from '../services/productService';
-import { categoryService, Category } from '../services/categoryService';
-import { storageService, Storage } from '../services/storageService';
+import { 
+  useGetProductQuery, 
+  useAddProductMutation, 
+  useUpdateProductMutation,
+  useGetCategoriesQuery,
+  useGetStorageLocationsQuery
+} from '../store/api/apiSlice';
+import { Product } from '../services/productService';
 
 interface ProductFormData {
   name: string;
@@ -39,52 +44,32 @@ export default function ProductFormPage() {
     location: ''
   });
 
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [storageLocations, setStorageLocations] = useState<Storage[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch categories and storage locations on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [categoriesData, storageData] = await Promise.all([
-          categoryService.getAllCategories(),
-          storageService.getAllStorageLocations()
-        ]);
-        
-        setCategories(categoriesData);
-        setStorageLocations(storageData);
-        
-        // If in edit mode, fetch the product data
-        if (isEditMode && id) {
-          const productData = await productService.getProductById(id);
-          if (productData) {
-            setFormData({
-              name: productData.name,
-              category: productData.category,
-              price: productData.price,
-              stock: productData.stock,
-              sku: productData.sku || '',
-              description: productData.description || '',
-              location: productData.location || ''
-            });
-          } else {
-            setError('Product not found');
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load data. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // RTK Query hooks
+  const { data: product, isLoading: productLoading } = useGetProductQuery(id!, { skip: !isEditMode });
+  const { data: categories = [], isLoading: categoriesLoading } = useGetCategoriesQuery();
+  const { data: storageLocations = [], isLoading: storageLoading } = useGetStorageLocationsQuery();
+  const [addProduct] = useAddProductMutation();
+  const [updateProduct] = useUpdateProductMutation();
+  
+  const isLoading = isEditMode ? productLoading : categoriesLoading || storageLoading;
 
-    fetchData();
-  }, [id, isEditMode]);
+  // Set form data when product data is loaded (edit mode)
+  useEffect(() => {
+    if (isEditMode && product) {
+      setFormData({
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        stock: product.stock,
+        sku: product.sku || '',
+        description: product.description || '',
+        location: product.location || ''
+      });
+    }
+  }, [isEditMode, product]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -93,7 +78,7 @@ export default function ProductFormPage() {
     if (type === 'number') {
       setFormData({
         ...formData,
-        [name]: parseFloat(value) || 0
+        [name]: value === '' ? 0 : parseFloat(value)
       });
     } else {
       setFormData({
@@ -105,36 +90,52 @@ export default function ProductFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
+    if (!formData.name || !formData.category) {
+      setError('Name and Category are required fields.');
+      return;
+    }
 
     try {
+      setSaving(true);
+      
       if (isEditMode && id) {
         // Update existing product
-        const updatedProduct = await productService.updateProduct(id, formData);
-        if (updatedProduct) {
-          navigate(`/products/${id}`);
-        } else {
-          setError('Failed to update product');
-        }
+        await updateProduct({
+          id,
+          product: {
+            name: formData.name,
+            category: formData.category,
+            price: formData.price,
+            stock: formData.stock,
+            sku: formData.sku || undefined,
+            description: formData.description || undefined,
+            location: formData.location || undefined
+          }
+        }).unwrap();
       } else {
         // Create new product
-        const newProduct = await productService.createProduct(formData);
-        if (newProduct) {
-          navigate(`/products/${newProduct.id}`);
-        } else {
-          setError('Failed to create product');
-        }
+        await addProduct({
+          name: formData.name,
+          category: formData.category,
+          price: formData.price,
+          stock: formData.stock,
+          sku: formData.sku || undefined,
+          description: formData.description || undefined,
+          location: formData.location || undefined
+        }).unwrap();
       }
+      
+      // Navigate back to products list
+      navigate('/products');
     } catch (err) {
       console.error('Error saving product:', err);
-      setError('An error occurred while saving the product');
+      setError('Failed to save product. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div className="flex justify-center p-8">Loading...</div>;
   }
 
